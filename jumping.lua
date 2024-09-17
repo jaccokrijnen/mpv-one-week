@@ -73,6 +73,8 @@ end
 -- Automatically update chapter list when a new file is loaded
 mp.register_event("file-loaded", update_chapters)
 
+
+-- ~/.config/mpv/scripts/display-chapters.lua
 mp.register_script_message("display-chapter", function()
     local chapter = mp.get_property_number("chapter")
     if chapter ~= nil then
@@ -85,3 +87,63 @@ end)
 mp.observe_property("chapter", "number", function(name, value)
     mp.command("script-message display-chapter")
 end)
+
+-- Save this as 'audio_toggle.lua' in your mpv scripts directory (~/.config/mpv/scripts/ on Linux)
+-- This script toggles audio tracks and combines the new message with any existing OSD message
+
+-- Function to get the number of available audio tracks
+function get_audio_track_count()
+    local tracks = mp.get_property_native("track-list")
+    local audio_tracks = {}
+    for _, track in ipairs(tracks) do
+        if track["type"] == "audio" then
+            table.insert(audio_tracks, track)
+        end
+    end
+    return audio_tracks
+end
+
+-- Function to get the current OSD message
+function get_existing_osd_message()
+    return mp.get_property("osd-msg") or "" -- Get any existing OSD message, or return an empty string
+end
+
+-- Function to combine the new message with the existing OSD message
+function show_combined_osd_message(new_message, duration)
+    local existing_message = get_existing_osd_message()
+    local combined_message = existing_message .. "\n" .. new_message
+    mp.osd_message(combined_message, duration)
+end
+
+-- Function to toggle between audio tracks
+function toggle_audio_channel()
+    -- Get the current audio track and list of audio tracks
+    local current_track = mp.get_property_native("aid")
+    local audio_tracks = get_audio_track_count()
+    local total_tracks = #audio_tracks
+
+    -- If no audio tracks are available, do nothing
+    if total_tracks == 0 then
+        show_combined_osd_message("No audio tracks available", 2000)
+        return
+    end
+
+    -- If current track is invalid (no audio), switch to track 1
+    if current_track == 0 then
+        mp.set_property("aid", 1)
+        show_combined_osd_message("Switched to audio track 1", 2000)
+        return
+    end
+
+    -- Toggle to the next track, wrap around if necessary
+    local next_track_index = (current_track % total_tracks) + 1
+    local next_track_id = audio_tracks[next_track_index].id
+    local next_track_title = audio_tracks[next_track_index].title or ("Audio Track " .. next_track_index)
+
+    -- Switch to the next audio track
+    mp.set_property("aid", next_track_id)
+    show_combined_osd_message("Switched to: " .. next_track_title, 2000)
+end
+
+-- Bind the toggle function to a key (e.g., "a" key)
+mp.add_key_binding("TAB", "toggle-audio", toggle_audio_channel)

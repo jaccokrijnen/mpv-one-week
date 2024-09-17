@@ -73,3 +73,15 @@ end
 -- Automatically update chapter list when a new file is loaded
 mp.register_event("file-loaded", update_chapters)
 
+mp.register_script_message("display-chapter", function()
+    local chapter = mp.get_property_number("chapter")
+    if chapter ~= nil then
+        local chapter_name = mp.get_property("chapter-metadata/title")
+        mp.osd_message(string.format("%s", chapter_name or "Unknown"), 30)
+    end
+end)
+
+-- Display chapter information every time a new chapter starts
+mp.observe_property("chapter", "number", function(name, value)
+    mp.command("script-message display-chapter")
+end)
